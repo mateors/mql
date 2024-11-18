@@ -8,11 +8,12 @@ import (
 
 func ReadTable2Columns(table string, db *sql.DB) ([]string, error) {
 
-	cols, err := ReadTable2Columns(table, db)
 	if DRIVER == "postgres" {
 		return readTable2ColumnsPSQL(table, db)
+	} else if DRIVER == "mysql" {
+		return ReadTable2Columns(table, db)
 	}
-	return cols, err
+	return nil, fmt.Errorf("unknown driver")
 }
 
 func readTable2Columns(table string, db *sql.DB) ([]string, error) {
@@ -123,11 +124,9 @@ func updateQueryBuilderMSQL(keyVal []string, tableName string, whereCondition st
 
 	sb := &strings.Builder{}
 	var fields string
-
 	for _, v := range keyVal {
 		fields += fmt.Sprintf("`%v`=?, ", v)
 	}
-
 	fmt.Fprintf(sb, "UPDATE `%v` SET %v WHERE %v;", tableName, strings.TrimRight(fields, ", "), whereCondition)
 	sql = sb.String()
 	return
@@ -231,9 +230,11 @@ func insertQueryBuilderPSQL(keyVal []string, tableName string) string {
 
 func insertQueryBuilder(keyVal []string, tableName string) string {
 
-	qstr := insertQueryBuilderMSQL(keyVal, tableName)
+	qstr := ""
 	if DRIVER == "postgres" {
 		qstr = insertQueryBuilderPSQL(keyVal, tableName)
+	} else if DRIVER == "mysql" {
+		qstr = insertQueryBuilderMSQL(keyVal, tableName)
 	}
 	return qstr
 }
