@@ -188,21 +188,3 @@ func insertUpdateMapNQL(form map[string]interface{}, db *sql.DB) error {
 	}
 	return nil
 }
-
-// couchbase
-// func insertTest(db *sql.DB) {
-// 	stmt, err := db.Prepare("UPSERT INTO lxroot._default.contactt values (?,?)")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	value, _ := json.Marshal(map[string]interface{}{"name": "Mostain", "type": "contactt"})
-// 	result, err := stmt.Exec("doc1", value) //SELECT * FROM lxroot._default.contactt WHERE META().id="doc1"
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	rowsAffected, err := result.RowsAffected()
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	log.Printf("Rows affected %d", rowsAffected)
-// }

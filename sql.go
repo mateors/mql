@@ -25,18 +25,16 @@ func readTable2Columns(table string, db *sql.DB) ([]string, error) {
 	}
 	defer rows.Close()
 
-	//var vfield, vtype, vnull, vkey, vextra string
 	var vfield, vtype, vnull, vkey, vextra sql.NullString
 	var vdefault *string
-
 	cols := []string{}
+
 	for rows.Next() {
 		err = rows.Scan(&vfield, &vtype, &vnull, &vkey, &vdefault, &vextra)
 		if err != nil {
 			return nil, err
 		}
 		if vfield.Valid {
-			//val, _ := vfield.Value()
 			cols = append(cols, vfield.String)
 		}
 	}
@@ -75,8 +73,6 @@ WHERE
 	}
 
 	defer rows.Close()
-
-	//var vfield, vtype, vnull, vkey, vextra string
 	var vfield, vtype, vnull, vkey, vextra sql.NullString
 	var vdefault *string
 
@@ -87,7 +83,6 @@ WHERE
 			return nil, err
 		}
 		if vfield.Valid {
-			//val, _ := vfield.Value()
 			cols = append(cols, vfield.String)
 		}
 	}
@@ -98,7 +93,6 @@ func form2KeyValueSliceMap(form map[string]interface{}, colList []string) (keyLi
 
 	fmap := make(map[string]string)
 	for key, valAray := range form {
-		//val := valAray
 		fmap[key] = fmt.Sprint(valAray)
 	}
 
@@ -106,12 +100,8 @@ func form2KeyValueSliceMap(form map[string]interface{}, colList []string) (keyLi
 
 		var cval = ""
 		if colval, ok := fmap[colName]; ok {
-			//fmt.Printf("%v-> %v exist value = %v\n", i, colName, colval)
 			cval = colval
-		} else {
-			//fmt.Printf("%v-> %v NOT IN MAP => %v\n", i, colName, colval)
 		}
-
 		if cval != "" {
 			keyList = append(keyList, colName)
 			valList = append(valList, cval)
@@ -137,7 +127,6 @@ func updateQueryBuilderPSQL(keyVal []string, tableName string, whereCondition st
 	sb := &strings.Builder{}
 	var fields string
 	for i, v := range keyVal {
-		//fields += fmt.Sprintf("%v=?, ", v)
 		fields += fmt.Sprintf("%v=$%d, ", v, i+1)
 	}
 	fmt.Fprintf(sb, "UPDATE %v SET %v WHERE %v;", tableName, strings.TrimRight(fields, ", "), whereCondition)
@@ -147,9 +136,11 @@ func updateQueryBuilderPSQL(keyVal []string, tableName string, whereCondition st
 
 func updateQueryBuilder(keyVal []string, tableName string, whereCondition string) string {
 
-	sql := updateQueryBuilderMSQL(keyVal, tableName, whereCondition)
+	var sql string
 	if DRIVER == "postgres" {
 		sql = updateQueryBuilderPSQL(keyVal, tableName, whereCondition)
+	} else if DRIVER == "mysql" {
+		sql = updateQueryBuilderMSQL(keyVal, tableName, whereCondition)
 	}
 	return sql
 }
@@ -180,25 +171,17 @@ func insertQueryBuilderMSQL(keyVal []string, tableName string) string {
 	sb := &strings.Builder{}
 	fields := ""
 	vals := ""
-
 	//ignoring slice 0 index value which is primary key auto incremented
 	for _, v := range keyVal {
-
 		if v == "NULL" {
-			//fields += fmt.Sprintf("%v, ", v)
 			fields += "NULL, "
 		} else {
-			//fields += fmt.Sprintf("`%v`, ", v) //mysql
-			fields += fmt.Sprintf("%v, ", v) //postgresql
+			fields += fmt.Sprintf("%v, ", v)
 		}
-
 		vals += "?, "
 	}
-	//fmt.Fprintf(sb, "INSERT INTO `%v` (%v) VALUES(%v);", tableName, strings.TrimRight(fields, ", "), strings.TrimRight(vals, ", "))
 	fmt.Fprintf(sb, "INSERT INTO %v (%v) VALUES (%v);", tableName, strings.TrimRight(fields, ", "), strings.TrimRight(vals, ", "))
-	sqlstr := sb.String()
-	fmt.Println(sqlstr)
-	return sqlstr
+	return sb.String()
 }
 
 func insertQueryBuilderPSQL(keyVal []string, tableName string) string {
@@ -206,31 +189,22 @@ func insertQueryBuilderPSQL(keyVal []string, tableName string) string {
 	sb := &strings.Builder{}
 	fields := ""
 	vals := ""
-
 	//ignoring slice 0 index value which is primary key auto incremented
 	for i, v := range keyVal {
-
 		if v == "NULL" {
-			//fields += fmt.Sprintf("%v, ", v)
 			fields += "NULL, "
 		} else {
-			//fields += fmt.Sprintf("`%v`, ", v) //mysql
-			fields += fmt.Sprintf("%v, ", v) //postgresql
+			fields += fmt.Sprintf("%v, ", v)
 		}
-
-		//vals += "?, "
 		vals += fmt.Sprintf("$%d, ", i+1)
 	}
-	//fmt.Fprintf(sb, "INSERT INTO `%v` (%v) VALUES(%v);", tableName, strings.TrimRight(fields, ", "), strings.TrimRight(vals, ", "))
 	fmt.Fprintf(sb, "INSERT INTO %v (%v) VALUES (%v);", tableName, strings.TrimRight(fields, ", "), strings.TrimRight(vals, ", "))
-	sqlstr := sb.String()
-	fmt.Println(sqlstr)
-	return sqlstr
+	return sb.String()
 }
 
 func insertQueryBuilder(keyVal []string, tableName string) string {
 
-	qstr := ""
+	var qstr string
 	if DRIVER == "postgres" {
 		qstr = insertQueryBuilderPSQL(keyVal, tableName)
 	} else if DRIVER == "mysql" {
@@ -239,24 +213,22 @@ func insertQueryBuilder(keyVal []string, tableName string) string {
 	return qstr
 }
 
-func finsert(sql string, valAray []string, db *sql.DB) (int64, int64, error) {
+func finsert(sql string, valAray []string, db *sql.DB) (lastInserId int64, rowAffected int64, err error) {
 
 	stmt, err := db.Prepare(sql)
 	if err != nil {
 		return 0, 0, err
 	}
-
 	defer stmt.Close()
 	v := make([]interface{}, len(valAray))
 	for i, val := range valAray {
 		v[i] = val
 	}
-
 	res, err := stmt.Exec(v...)
 	if err != nil {
 		return 0, 0, err
 	}
-	lrid, _ := res.LastInsertId()
-	lcount, _ := res.RowsAffected()
-	return lrid, lcount, nil
+	lastInserId, err = res.LastInsertId()
+	rowAffected, err = res.RowsAffected()
+	return
 }
