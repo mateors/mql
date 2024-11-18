@@ -11,12 +11,12 @@ func ReadTable2Columns(table string, db *sql.DB) ([]string, error) {
 	if DRIVER == "postgres" {
 		return readTable2ColumnsPSQL(table, db)
 	} else if DRIVER == "mysql" {
-		return ReadTable2Columns(table, db)
+		return readTable2ColumnsMSQL(table, db)
 	}
 	return nil, fmt.Errorf("unknown driver")
 }
 
-func readTable2Columns(table string, db *sql.DB) ([]string, error) {
+func readTable2ColumnsMSQL(table string, db *sql.DB) ([]string, error) {
 
 	sqls := fmt.Sprintf("SHOW COLUMNS FROM `%v`;", table)
 	rows, err := db.Query(sqls)
