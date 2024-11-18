@@ -232,3 +232,23 @@ func finsert(sql string, valAray []string, db *sql.DB) (lastInserId int64, rowAf
 	rowAffected, err = res.RowsAffected()
 	return
 }
+
+func FieldByValue(table, fieldName, where string, db *sql.DB) string {
+
+	var sql string
+	if DRIVER == "mysql" {
+		sql = fmt.Sprintf("SELECT %v FROM `%v` WHERE %v;", fieldName, table, where)
+	} else if DRIVER == "postgres" {
+		sql = fmt.Sprintf("SELECT %v FROM `%v` WHERE %v;", fieldName, table, where)
+
+	} else if DRIVER == "n1ql" {
+		sql = fmt.Sprintf("SELECT %v FROM %v WHERE %v;", fieldName, tableToBucket(table), where)
+	}
+	rows := db.QueryRow(sql)
+	var vfield string
+	err := rows.Scan(&vfield)
+	if err != nil {
+		return vfield
+	}
+	return vfield
+}
