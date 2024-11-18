@@ -2,6 +2,7 @@ package mql
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -235,20 +236,56 @@ func finsert(sql string, valAray []string, db *sql.DB) (lastInserId int64, rowAf
 
 func FieldByValue(table, fieldName, where string, db *sql.DB) string {
 
+	var val string
+	if DRIVER == "mysql" || DRIVER == "postgres" {
+		val = fieldByValueSQL(table, fieldName, where, db)
+	} else if DRIVER == "n1ql" {
+		val = fieldByValueNQL(table, fieldName, where, db)
+	}
+	return val
+}
+
+func fieldByValueSQL(table, fieldName, where string, db *sql.DB) string {
+
 	var sql string
 	if DRIVER == "mysql" {
 		sql = fmt.Sprintf("SELECT %v FROM `%v` WHERE %v;", fieldName, table, where)
 	} else if DRIVER == "postgres" {
 		sql = fmt.Sprintf("SELECT %v FROM `%v` WHERE %v;", fieldName, table, where)
-
-	} else if DRIVER == "n1ql" {
-		sql = fmt.Sprintf("SELECT %v FROM %v WHERE %v;", fieldName, tableToBucket(table), where)
 	}
 	rows := db.QueryRow(sql)
 	var vfield string
 	err := rows.Scan(&vfield)
 	if err != nil {
 		return vfield
+	}
+	return vfield
+}
+
+func scanMap(jsonBytes []uint8) map[string]interface{} {
+
+	var cmap = make(map[string]interface{}, 0)
+	err := json.Unmarshal(jsonBytes, &cmap)
+	if err != nil {
+		return nil
+	}
+	return cmap
+}
+
+// FieldByValue Get one field_value using where clause
+func fieldByValueNQL(table, fieldName, where string, db *sql.DB) string {
+
+	sql := fmt.Sprintf("SELECT %s FROM %s WHERE %s;", fieldName, tableToBucket(table), where)
+	rows := db.QueryRow(sql)
+	var vfield string
+	var jsonBytes []uint8
+	err := rows.Scan(&jsonBytes)
+	if err != nil {
+		return ""
+	}
+	cmap := scanMap(jsonBytes)
+	if len(cmap) > 0 {
+		vfield = fmt.Sprint(cmap[fieldName])
 	}
 	return vfield
 }
