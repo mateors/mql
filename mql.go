@@ -111,6 +111,9 @@ func GetRows2(rows *sql.Rows) ([]map[string]interface{}, error) {
 
 func GetRows(sql string, db *sql.DB) ([]map[string]interface{}, error) {
 
+	if db == nil {
+		return nil, fmt.Errorf("check your dbconnection!")
+	}
 	rows, err := db.Query(sql)
 	if err != nil {
 		return nil, err
