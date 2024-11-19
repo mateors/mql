@@ -28,7 +28,7 @@ func RawSQL(sql string, db *sql.DB) error {
 	return err
 }
 
-func GetRows(rows *sql.Rows) ([]map[string]interface{}, error) {
+func GetRows2(rows *sql.Rows) ([]map[string]interface{}, error) {
 
 	columns, err := rows.Columns()
 	if err != nil {
@@ -39,6 +39,92 @@ func GetRows(rows *sql.Rows) ([]map[string]interface{}, error) {
 	values := make([]interface{}, count)
 	valuePtrs := make([]interface{}, count)
 
+	var isStarFound bool
+	var colCount int
+	var orows = make([]map[string]interface{}, 0)
+
+	for rows.Next() {
+
+		for i := range columns {
+			valuePtrs[i] = &values[i]
+		}
+		rows.Scan(valuePtrs...)
+		var orow = make(map[string]interface{})
+		for i, col := range columns {
+			colCount++
+			if col == "*" {
+				isStarFound = true
+			}
+			val := values[i]
+			orow[col] = val
+		}
+		orows = append(orows, orow)
+	}
+
+	//process
+	var nrows = make([]map[string]interface{}, 0)
+
+	if isStarFound {
+
+		for _, row := range orows {
+
+			for _, col := range columns {
+				var vmap = make(map[string]interface{})
+				json.Unmarshal(row[col].([]uint8), &vmap)
+				for key := range vmap {
+					vrow, isOk := vmap[key].(map[string]interface{})
+					if isOk {
+						nrows = append(nrows, vrow)
+					} else {
+						fmt.Printf("%v %T\n", vmap[key], vmap[key])
+					}
+				}
+			}
+		}
+
+	} else if colCount == 1 {
+
+		for _, row := range orows {
+			for _, val := range row {
+				json.Unmarshal(val.([]uint8), &row)
+			}
+			nrows = append(nrows, row)
+		}
+
+	} else if colCount > 1 {
+
+		for _, row := range orows {
+			var srow = make(map[string]interface{})
+			for key, val := range row {
+				vbs, isOk := val.([]uint8)
+				if isOk {
+					srow[key] = bytesToStr(vbs) //?
+				} else {
+					srow[key] = val
+				}
+			}
+			nrows = append(nrows, srow)
+		}
+	}
+	return nrows, nil
+}
+
+func GetRows(sql string, db *sql.DB) ([]map[string]interface{}, error) {
+
+	rows, err := db.Query(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	count := len(columns)
+	values := make([]interface{}, count)
+	valuePtrs := make([]interface{}, count)
 	var isStarFound bool
 	var colCount int
 	var orows = make([]map[string]interface{}, 0)
