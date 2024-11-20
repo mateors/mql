@@ -13,6 +13,8 @@ func ReadTable2Columns(table string, db *sql.DB) ([]string, error) {
 		return readTable2ColumnsPSQL(table, db)
 	} else if DRIVER == "mysql" {
 		return readTable2ColumnsMSQL(table, db)
+	} else if DRIVER == "n1ql" {
+		return readTable2ColumnsNQL(table)
 	}
 	return nil, fmt.Errorf("unknown driver")
 }
@@ -86,6 +88,16 @@ WHERE
 		if vfield.Valid {
 			cols = append(cols, vfield.String)
 		}
+	}
+	return cols, nil
+}
+
+func readTable2ColumnsNQL(table string) ([]string, error) {
+
+	cols := []string{}
+	fList := structNameToFields(table)
+	for _, fld := range fList {
+		cols = append(cols, fld.TagName)
 	}
 	return cols, nil
 }
