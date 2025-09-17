@@ -109,6 +109,25 @@ func GetRows2(rows *sql.Rows) ([]map[string]interface{}, error) {
 	return nrows, nil
 }
 
+func tryUnmarshalFlexible(val interface{}) (map[string]interface{}, bool) {
+    var raw []byte
+
+    switch v := val.(type) {
+    case []uint8:
+        raw = v
+    case string:
+        raw = []byte(v)
+    default:
+        return nil, false
+    }
+
+    var result map[string]interface{}
+    if err := json.Unmarshal(raw, &result); err != nil {
+        return nil, false
+    }
+    return result, true
+}
+
 func GetRows(sql string, db *sql.DB) ([]map[string]interface{}, error) {
 
 	if db == nil {
@@ -174,10 +193,14 @@ func GetRows(sql string, db *sql.DB) ([]map[string]interface{}, error) {
 	} else if colCount == 1 {
 
 		for _, row := range orows {
-			for _, val := range row {
-				json.Unmarshal(val.([]uint8), &row)
-			}
-			nrows = append(nrows, row)
+		    for _, val := range row {
+		        if parsed, ok := tryUnmarshalFlexible(val); ok {
+		            nrows = append(nrows, parsed)
+		        } else {
+		            nrows = append(nrows, row) // fallback to original row
+		        }
+		        break // only need to try one value per row
+		    }
 		}
 
 	} else if colCount > 1 {
